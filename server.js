@@ -17,6 +17,7 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
+            '--single-process', // RAM खपत बहुत कम करने के लिए
             '--disable-gpu'
         ]
     }
@@ -25,20 +26,22 @@ const client = new Client({
 let isReady = false;
 
 client.on('qr', (qr) => {
-    console.log('\n--- SCAN THIS QR CODE IN RENDER LOGS ---\n');
+    console.log('\n=============================================');
+    console.log('--- SCAN THIS QR CODE IN YOUR WHATSAPP ---');
+    console.log('=============================================\n');
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
     isReady = true;
-    console.log('\n==================================');
+    console.log('\n=============================================');
     console.log('WhatsApp Connected Successfully on Render!');
-    console.log('==================================\n');
+    console.log('=============================================\n');
 });
 
 client.on('disconnected', (reason) => {
     isReady = false;
-    console.log('Client was logged out:', reason);
+    console.log('Client disconnected:', reason);
 });
 
 app.post('/send-receipt', async (req, res) => {
@@ -46,35 +49,32 @@ app.post('/send-receipt', async (req, res) => {
         if (!isReady) {
             return res.status(503).json({ 
                 status: 'error', 
-                message: 'WhatsApp Client is still initializing or disconnected. Please wait.' 
+                message: 'WhatsApp Client is initializing. Please wait 1 minute.' 
             });
         }
 
         const { phone, message } = req.body;
-
         if (!phone || !message) {
-            return res.status(400).json({ status: 'error', message: 'Phone and message required' });
+            return res.status(400).json({ status: 'error', message: 'Phone & Message required' });
         }
 
-        let formattedPhone = phone.toString().trim().replace(/[^0-9]/g, '');
-        if (formattedPhone.length === 10) {
-            formattedPhone = '91' + formattedPhone;
+        let cleanPhone = String(phone).replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 10) {
+            cleanPhone = '91' + cleanPhone;
         }
 
-        const chatId = formattedPhone + '@c.us';
-
-        // Direct send message
+        const chatId = cleanPhone + '@c.us';
         await client.sendMessage(chatId, message);
-        console.log(`Message sent to: ${formattedPhone}`);
+        console.log(`Message successfully sent to: ${cleanPhone}`);
 
         res.status(200).json({ status: 'success', message: 'Sent successfully' });
     } catch (error) {
         console.error('Error sending message:', error);
-        res.status(500).json({ status: 'error', error: error.message || String(error) });
+        res.status(500).json({ status: 'error', error: String(error.message || error) });
     }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}...`);
     client.initialize();
