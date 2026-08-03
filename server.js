@@ -7,14 +7,14 @@ const QRCode = require('qrcode');
 const app = express();
 app.use(express.json());
 
-// यहाँ अपनी MongoDB कनेक्शन स्ट्रिंग डालें
-const MONGO_URI = "YOUR_MONGODB_CONNECTION_STRING_HERE";
+// आपकी MongoDB Connection String
+const MONGO_URI = "mongodb+srv://apsmadhopur2024_db_user:MlCcCVgVpyHtOGZp@cluster0.me9ps5j.mongodb.net/whatsapp_db?retryWrites=true&wmode=majority";
 
 let qrCodeData = '';
 let isReady = false;
 
 mongoose.connect(MONGO_URI).then(() => {
-    console.log("MongoDB Connected Successfully!");
+    console.log("MongoDB Database Connected Successfully!");
 
     const store = new MongoStore({ mongoose: mongoose });
     const client = new Client({
@@ -50,7 +50,11 @@ mongoose.connect(MONGO_URI).then(() => {
     client.on('ready', () => {
         isReady = true;
         qrCodeData = '';
-        console.log('WhatsApp Connected Successfully & Session Saved in Database!');
+        console.log('WhatsApp Connected & Session Saved Permanently in Database!');
+    });
+
+    client.on('remote_session_saved', () => {
+        console.log('Session successfully saved to Remote MongoDB Store!');
     });
 
     client.on('disconnected', (reason) => {
@@ -61,7 +65,7 @@ mongoose.connect(MONGO_URI).then(() => {
 
     app.get('/qr', (req, res) => {
         if (isReady) {
-            return res.send('<h2>WhatsApp is already connected!</h2>');
+            return res.send('<h2>WhatsApp is already connected and session is saved!</h2>');
         }
         if (!qrCodeData) {
             return res.send('<h2>QR code is generating, please refresh in 10 seconds...</h2>');
