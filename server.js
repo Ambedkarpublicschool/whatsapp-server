@@ -22,19 +22,34 @@ const client = new Client({
     }
 });
 
+let isReady = false;
+
 client.on('qr', (qr) => {
     console.log('\n--- SCAN THIS QR CODE IN RENDER LOGS ---\n');
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
+    isReady = true;
     console.log('\n==================================');
     console.log('WhatsApp Connected Successfully on Render!');
     console.log('==================================\n');
 });
 
+client.on('disconnected', (reason) => {
+    isReady = false;
+    console.log('Client was logged out:', reason);
+});
+
 app.post('/send-receipt', async (req, res) => {
     try {
+        if (!isReady) {
+            return res.status(503).json({ 
+                status: 'error', 
+                message: 'WhatsApp Client is still initializing or disconnected. Please wait.' 
+            });
+        }
+
         const { phone, message } = req.body;
 
         if (!phone || !message) {
@@ -48,13 +63,14 @@ app.post('/send-receipt', async (req, res) => {
 
         const chatId = formattedPhone + '@c.us';
 
+        // Direct send message
         await client.sendMessage(chatId, message);
         console.log(`Message sent to: ${formattedPhone}`);
 
         res.status(200).json({ status: 'success', message: 'Sent successfully' });
     } catch (error) {
         console.error('Error sending message:', error);
-        res.status(500).json({ status: 'error', error: error.message });
+        res.status(500).json({ status: 'error', error: error.message || String(error) });
     }
 });
 
