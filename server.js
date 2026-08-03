@@ -1,9 +1,12 @@
 const express = require('express');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 
 const app = express();
 app.use(express.json());
+
+let qrCodeData = '';
+let isReady = false;
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -23,25 +26,44 @@ const client = new Client({
     }
 });
 
-let isReady = false;
-
-client.on('qr', (qr) => {
-    console.log('\n=============================================');
-    console.log('--- SCAN THIS QR CODE IN YOUR WHATSAPP ---');
-    console.log('=============================================\n');
-    qrcode.generate(qr, { small: false });
+client.on('qr', async (qr) => {
+    console.log('New QR code generated.');
+    try {
+        qrCodeData = await QRCode.toDataURL(qr);
+    } catch (err) {
+        console.error('Failed to generate QR Data URL:', err);
+    }
 });
 
 client.on('ready', () => {
     isReady = true;
-    console.log('\n=============================================');
+    qrCodeData = '';
     console.log('WhatsApp Connected Successfully on Render!');
-    console.log('=============================================\n');
 });
 
 client.on('disconnected', (reason) => {
     isReady = false;
+    qrCodeData = '';
     console.log('Client disconnected:', reason);
+});
+
+// ब्राउज़र में साफ़ QR कोड देखने के लिए यह लिंक खोलें
+app.get('/qr', (req, res) => {
+    if (isReady) {
+        return res.send('<h2>WhatsApp is already connected!</h2>');
+    }
+    if (!qrCodeData) {
+        return res.send('<h2>QR code is generating, please refresh in 10 seconds...</h2>');
+    }
+    res.send(`
+        <html>
+            <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;">
+                <h2>Scan this QR code with WhatsApp</h2>
+                <img src="${qrCodeData}" style="width:300px;height:300px;" />
+                <p>Refresh page if QR code expires.</p>
+            </body>
+        </html>
+    `);
 });
 
 app.post('/send-receipt', async (req, res) => {
@@ -49,7 +71,7 @@ app.post('/send-receipt', async (req, res) => {
         if (!isReady) {
             return res.status(503).json({ 
                 status: 'error', 
-                message: 'WhatsApp Client is initializing. Please wait 1 minute.' 
+                message: 'WhatsApp Client is not ready. Please scan QR first at /qr' 
             });
         }
 
@@ -65,7 +87,7 @@ app.post('/send-receipt', async (req, res) => {
 
         const chatId = cleanPhone + '@c.us';
         await client.sendMessage(chatId, message);
-        console.log(`Message successfully sent to: ${cleanPhone}`);
+        console.log(`Message sent to: ${cleanPhone}`);
 
         res.status(200).json({ status: 'success', message: 'Sent successfully' });
     } catch (error) {
