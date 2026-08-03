@@ -17,7 +17,7 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--single-process', // RAM खपत बहुत कम करने के लिए
+            '--single-process',
             '--disable-gpu'
         ]
     }
@@ -29,7 +29,7 @@ client.on('qr', (qr) => {
     console.log('\n=============================================');
     console.log('--- SCAN THIS QR CODE IN YOUR WHATSAPP ---');
     console.log('=============================================\n');
-    qrcode.generate(qr, { small: true });
+    qrcode.generate(qr, { small: false });
 });
 
 client.on('ready', () => {
